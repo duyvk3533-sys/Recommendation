@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Java & Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+mvnw
+mvnw.cmd
+.mvn/
+dependency-reduced-pom.xml
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# Secrets & Config
+.env
+.env.*
+!.env.example
+application-local.yml
+
+# Testing
+*.http
+*.rest
+
+# Logs
+*.log
+logs/
+*_log.txt
+.gemini/
+scratch/

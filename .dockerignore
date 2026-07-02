@@ -1,0 +1,10 @@
+node_modules
+dist
+target
+*.log
+.git
+.env
+.gemini
+backend/target
+frontend/node_modules
+frontend/dist
