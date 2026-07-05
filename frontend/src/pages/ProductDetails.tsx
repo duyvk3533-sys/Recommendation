@@ -787,7 +787,24 @@ const ProductDetails = () => {
                                 {rev.userFullName?.[0] || 'U'}
                               </div>
                               <div>
-                                <p className="font-black text-gray-900 text-lg uppercase tracking-tight leading-none mb-2">{rev.userFullName}</p>
+                                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                  <p className="font-black text-gray-900 text-lg uppercase tracking-tight leading-none">{rev.userFullName}</p>
+                                  {rev.sentiment && (
+                                    rev.sentiment.toUpperCase() === 'POSITIVE' ? (
+                                      <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-green-100">
+                                        😊 Tích cực
+                                      </span>
+                                    ) : rev.sentiment.toUpperCase() === 'NEGATIVE' ? (
+                                      <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-red-100">
+                                        😡 Tiêu cực
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-600 text-[9px] font-black px-2 py-0.5 rounded-full border border-gray-100">
+                                        😐 Trung lập
+                                      </span>
+                                    )
+                                  )}
+                                </div>
                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest opacity-60 italic">{new Date(rev.createdAt).toLocaleDateString('vi-VN')}</p>
                               </div>
                             </div>

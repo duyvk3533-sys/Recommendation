@@ -30,6 +30,7 @@ public class ReviewJpaEntity {
     private Long productId; // FK
     private Integer ratingStar; // 1-5
     private String comment;
+    private String sentiment;
     
     private LocalDateTime createdAt;
 }

@@ -10,7 +10,8 @@ const ChatWidget = () => {
   const [inputValue, setInputValue] = useState('');
   const [showNotification, setShowNotification] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const { messages, sendMessage, unreadCount, currentUserId, markAsRead } = useChat();
+  const [chatMode, setChatMode] = useState<'ADMIN' | 'AI'>('ADMIN');
+  const { messages, sendMessage, unreadCount, currentUserId, markAsRead } = useChat(chatMode);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,6 +102,24 @@ const ChatWidget = () => {
               </button>
             </div>
 
+            {/* Target Tab Selection */}
+            <div className="flex border-b border-gray-100 bg-white">
+              <button
+                type="button"
+                onClick={() => setChatMode('ADMIN')}
+                className={`flex-1 py-2 text-center text-xs font-bold transition-all border-b-2 ${chatMode === 'ADMIN' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+              >
+                💬 Nhân viên
+              </button>
+              <button
+                type="button"
+                onClick={() => setChatMode('AI')}
+                className={`flex-1 py-2 text-center text-xs font-bold transition-all border-b-2 ${chatMode === 'AI' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+              >
+                🤖 Trợ lý AI
+              </button>
+            </div>
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4 bg-gray-50/50">
               {messages.length === 0 && (
@@ -108,7 +127,11 @@ const ChatWidget = () => {
                   <div className="bg-primary-50 w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 text-primary-500">
                     <MessageCircle size={24} className="md:w-8 md:h-8" />
                   </div>
-                  <p className="text-gray-500 text-xs md:text-sm px-4">Chào bạn! Chúng tôi có thể giúp gì cho bạn?</p>
+                  <p className="text-gray-500 text-xs md:text-sm px-4">
+                    {chatMode === 'AI' 
+                      ? 'Xin chào! Tôi là Trợ lý AI chăm sóc da của Glowzy. Bạn cần tư vấn gì về da hay mỹ phẩm không?' 
+                      : 'Chào bạn! Chúng tôi có thể giúp gì cho bạn?'}
+                  </p>
                 </div>
               )}
               {messages.map((msg, idx) => {
@@ -159,13 +182,15 @@ const ChatWidget = () => {
                   placeholder="Nhập tin nhắn..."
                   className="flex-1 px-3 py-1.5 md:px-4 md:py-2 bg-gray-50 border border-gray-200 rounded-lg md:rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-xs md:text-sm transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-1.5 md:p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
-                >
-                  <Paperclip size={18} className="md:w-5 md:h-5" />
-                </button>
+                {chatMode !== 'AI' && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-1.5 md:p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                  >
+                    <Paperclip size={18} className="md:w-5 md:h-5" />
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={!inputValue.trim() || isUploading}

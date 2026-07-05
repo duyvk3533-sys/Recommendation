@@ -26,6 +26,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final SentimentAnalysisService sentimentAnalysisService;
 
     @Transactional
     public ReviewResponse createReview(Long productId, String userEmail, CreateReviewRequest request) {
@@ -47,12 +48,20 @@ public class ReviewService {
             throw new BadRequestException("Bạn đã đánh giá sản phẩm này rồi");
         }
 
+        // Phân tích cảm xúc và kiểm duyệt nội dung dùng AI (Llama 3/Gemini) hoặc fallback
+        SentimentAnalysisService.SentimentResult result = sentimentAnalysisService.analyzeSentimentAndModeration(request.getComment(), request.getRatingStar());
+        if (!result.isAppropriate()) {
+            throw new BadRequestException("Bình luận của bạn chứa nội dung không phù hợp (từ ngữ thô tục, quảng cáo hoặc có dấu hiệu spam).");
+        }
+        String sentiment = result.getSentiment();
+
         // Tạo review
         ReviewJpaEntity review = ReviewJpaEntity.builder()
                 .userId(user.getId())
                 .productId(productId)
                 .ratingStar(request.getRatingStar())
                 .comment(request.getComment())
+                .sentiment(sentiment)
                 .createdAt(LocalDateTime.now())
                 .build();
         
@@ -112,6 +121,7 @@ public class ReviewService {
                 .productName(productName)
                 .ratingStar(review.getRatingStar())
                 .comment(review.getComment())
+                .sentiment(review.getSentiment())
                 .createdAt(review.getCreatedAt().toString() + "Z")
                 .build();
     }

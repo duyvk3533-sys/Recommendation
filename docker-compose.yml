@@ -4,6 +4,9 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
@@ -17,6 +20,7 @@ services:
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     volumes:
       - uploads_data:/app/uploads
 

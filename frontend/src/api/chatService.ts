@@ -102,8 +102,8 @@ class ChatService {
     return response.data.data;
   }
 
-  async getHistory(userId: string): Promise<ChatMessage[]> {
-    const response = await axiosInstance.get<ApiResponse<ChatMessage[]>>(`/chat/history/${userId}`);
+  async getHistory(userId: string, recipientId: string = 'ADMIN'): Promise<ChatMessage[]> {
+    const response = await axiosInstance.get<ApiResponse<ChatMessage[]>>(`/chat/history/${userId}?recipientId=${recipientId}`);
     return response.data.data;
   }
 

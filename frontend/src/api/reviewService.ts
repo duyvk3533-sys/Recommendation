@@ -9,6 +9,7 @@ export interface Review {
   productName: string;
   ratingStar: number;
   comment: string;
+  sentiment?: string;
   createdAt: string;
 }
 

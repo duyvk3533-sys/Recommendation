@@ -34,7 +34,7 @@ export const useChat = (recipientId: string = 'ADMIN') => {
       // If admin, fetch history for the recipient (guest). If guest, fetch for yourself.
       const targetId = currentUserId === 'ADMIN' ? recipientId : currentUserId;
       if (targetId && targetId !== 'ADMIN') {
-        const history = await chatService.getHistory(targetId);
+        const history = await chatService.getHistory(targetId, currentUserId === 'ADMIN' ? 'ADMIN' : recipientId);
         setMessages(history);
       }
     } catch (error) {

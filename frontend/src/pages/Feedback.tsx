@@ -140,6 +140,27 @@ export const FeedbackPage = () => {
           <p className="text-slate-400 text-sm italic line-clamp-2">"{rev.comment}"</p>
         </div>
     ),
+    sentiment: (
+      <div className="flex items-center">
+        {rev.sentiment ? (
+          rev.sentiment.toUpperCase() === 'POSITIVE' ? (
+            <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-500/20">
+              😊 Tích cực
+            </span>
+          ) : rev.sentiment.toUpperCase() === 'NEGATIVE' ? (
+            <span className="inline-flex items-center gap-1 bg-rose-500/10 text-rose-400 text-xs font-bold px-2.5 py-1 rounded-full border border-rose-500/20">
+              😡 Tiêu cực
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 bg-slate-500/10 text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full border border-slate-500/20">
+              😐 Trung lập
+            </span>
+          )
+        ) : (
+          <span className="text-slate-600 text-xs">-</span>
+        )}
+      </div>
+    ),
     date: (
       <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
         {new Date(rev.createdAt).toLocaleString('vi-VN')}
@@ -208,6 +229,7 @@ export const FeedbackPage = () => {
                         { header: "Sản phẩm", key: "product" },
                         { header: "Điểm", key: "rating" },
                         { header: "Nhận xét", key: "comment" },
+                        { header: "Cảm xúc (AI)", key: "sentiment" },
                         { header: "Thời gian", key: "date" }
                     ]} 
                     data={reviewTableData} 
