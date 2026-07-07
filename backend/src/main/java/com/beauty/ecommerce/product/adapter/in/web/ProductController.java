@@ -3,7 +3,9 @@ package com.beauty.ecommerce.product.adapter.in.web;
 import com.beauty.ecommerce.common.dto.ApiResponse;
 import com.beauty.ecommerce.product.adapter.in.web.response.ProductListResponse;
 import com.beauty.ecommerce.product.adapter.in.web.response.ProductResponse;
+import com.beauty.ecommerce.product.adapter.in.web.response.ProductResponseDTO;
 import com.beauty.ecommerce.product.application.port.in.GetProductUseCase;
+import com.beauty.ecommerce.product.application.port.in.VisualSearchUseCase;
 import com.beauty.ecommerce.product.application.service.ProductRecommendationService;
 import com.beauty.ecommerce.product.domain.entity.Product;
 import com.beauty.ecommerce.review.adapter.out.persistence.ReviewRepository;
@@ -13,11 +15,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -28,11 +34,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
+@Slf4j
 public class ProductController {
 
     private final GetProductUseCase productUseCase;
     private final ReviewRepository reviewRepository;
     private final ProductRecommendationService productRecommendationService;
+    private final VisualSearchUseCase visualSearchUseCase;
 
     @GetMapping
     public ResponseEntity<Page<ProductListResponse>> getAllProducts(
@@ -239,5 +247,57 @@ public class ProductController {
                 .status(product.getStatus())
                 .expiryDate(product.getExpiryDate())
                 .build();
+    }
+        // ==================== VISUAL SEARCH ENDPOINTS ====================
+    /**
+     * POST /api/products/search-by-image
+     * Upload an image and get visually similar products
+     */
+    @PostMapping(value = "/search-by-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<ProductResponseDTO>> searchByImage(
+            @RequestParam("image") MultipartFile imageFile,
+            @RequestParam(value = "topK", defaultValue = "10") int topK) {
+        try {
+            if (imageFile.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+            List<ProductResponseDTO> results = visualSearchUseCase.searchByImage(imageFile, Math.min(topK, 20));
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            log.error("Visual search failed", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * POST /api/products/{id}/index-vector
+     * Index the vector for a specific product (Admin only)
+     */
+    @PostMapping("/{id}/index-vector")
+    public ResponseEntity<Void> indexProductVector(@PathVariable Long id,
+                                                    @RequestParam String imageUrl) {
+        try {
+            visualSearchUseCase.indexProductVector(id, imageUrl);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Failed to index vector for product {}", id, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * POST /api/products/index-all-vectors
+     * Trigger bulk indexing of all product images (Admin only)
+     */
+    @PostMapping("/index-all-vectors")
+    public ResponseEntity<Map<String, String>> indexAllVectors() {
+        try {
+            visualSearchUseCase.indexAllProducts();
+            return ResponseEntity.accepted()
+                    .body(Map.of("message", "Bulk indexing started in background"));
+        } catch (Exception e) {
+            log.error("Failed to start bulk indexing", e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

@@ -1,9 +1,20 @@
 import axiosInstance from './axiosInstance';
+import type { Product } from '../types';
 
 export const productService = {
   searchProducts: async (params: { keyword?: string; categoryId?: number; minPrice?: number; maxPrice?: number; sortBy?: string; onSale?: boolean; skinType?: string; includeHidden?: boolean; page?: number; size?: number }) => {
     const response = await axiosInstance.get('/products', { params });
     return response.data; // This returns a Page object from Spring Data
+  },
+  searchByImage: async (file: File, topK: number = 10): Promise<Product[]> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await axiosInstance.post<Product[]>('/products/search-by-image', formData, {
+      params: { topK },
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
   },
   getProductById: async (id: number) => {
     const response = await axiosInstance.get(`/products/${id}`);

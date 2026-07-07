@@ -71,3 +71,6 @@ jwt:
 gemini:
   api-key: ${GEMINI_API_KEY:}
 
+# Visual Search Configuration
+visual-search:
+  index-on-startup: false

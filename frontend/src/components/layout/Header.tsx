@@ -18,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
 import { OrderLookupModal } from '../modals/OrderLookupModal';
 import { categoryService } from '../../api/categoryService';
+import { ImageSearchButton } from '../ui/ImageSearchButton';
 
 export const Header = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -106,7 +107,7 @@ export const Header = () => {
           </div>
 
           {/* Search Bar - Desktop */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-8 relative">
+          <div className="hidden md:flex flex-1 max-w-xl mx-8 items-center gap-2 relative">
             <form onSubmit={handleSearch} className="w-full relative">
               <input
                 type="text"
@@ -119,6 +120,7 @@ export const Header = () => {
                 <Search size={18} />
               </button>
             </form>
+            <ImageSearchButton className="flex-shrink-0" />
           </div>
 
           {/* User Actions & Utility Links */}
@@ -370,15 +372,22 @@ export const Header = () => {
           <button onClick={() => setIsMenuOpen(false)}><X size={28} /></button>
         </div>
         <div className="p-4 space-y-4 h-full overflow-y-auto pb-20">
-          <div className="relative mb-6">
+          <div className="flex items-center gap-2 mb-6">
+            <form onSubmit={handleSearch} className="relative flex-1">
             <input
               type="text"
+
+              value={searchQuery}
+              onChange={(e: any) => setSearchQuery(e.target.value)}
+
               placeholder="Tìm kiếm..."
               className="w-full pl-4 pr-12 py-3 bg-gray-100 border-none rounded-lg focus:ring-0 outline-none"
             />
-            <button className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-              <Search size={20} />
+            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                <Search size={20} />
             </button>
+            </form>
+            <ImageSearchButton className="flex-shrink-0" />
           </div>
           <div className="flex flex-col space-y-4">
             {mainNavLinks.map((link) => {

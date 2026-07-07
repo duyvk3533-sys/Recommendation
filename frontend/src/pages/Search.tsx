@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import { FilterSidebar } from '../components/category/FilterSidebar';
 import { ProductCard } from '../components/ui/ProductCard';
 import { Filter, ChevronDown, SearchIcon, Loader2 } from 'lucide-react';
 import { productService } from '../api/productService';
 import { toast } from 'react-hot-toast';
+import type { Product } from '../types';
 
+type VisualSearchLocationState = {
+  imageResults?: Product[];
+  previewUrl?: string;
+} | null;
 const SearchResultPage = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const query = searchParams.get('q') || '';
+  const mode = searchParams.get('mode');
+  const visualSearchState = location.state as VisualSearchLocationState;
+  const imageResults = visualSearchState?.imageResults;
+  const previewUrl = visualSearchState?.previewUrl;
+  const isVisualSearch = mode === 'image' && Array.isArray(imageResults);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   
   // Filter states
@@ -39,6 +50,13 @@ const SearchResultPage = () => {
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
+    if (isVisualSearch) {
+      setProducts(imageResults);
+      setTotalElements(imageResults.length);
+      setIsLoading(false);
+      return;
+    }
+    
     const fetchProducts = async () => {
       setIsLoading(true);
       try {
@@ -68,7 +86,7 @@ const SearchResultPage = () => {
     };
 
     fetchProducts();
-  }, [query, selectedPriceRange]); // For now only keyword and price
+  }, [query, selectedPriceRange, isVisualSearch, imageResults]); // For now only keyword and price
 
   return (
     <div className="bg-white min-h-screen pb-20">
@@ -89,12 +107,14 @@ const SearchResultPage = () => {
                  <SearchIcon className="text-primary-500 w-8 h-8" />
                </div>
                <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter">
-                 KẾT QUẢ TÌM KIẾM
+                {isVisualSearch ? 'KẾT QUẢ TÌM KIẾM BẰNG HÌNH ẢNH' : 'KẾT QUẢ TÌM KIẾM'}
                </h1>
             </div>
             
             <p className="text-slate-400 font-medium text-lg">
-              {query ? (
+              {isVisualSearch ? (
+                <>Đang hiển thị kết quả phù hợp với ảnh bạn đã chọn</>
+              ) : query ? (
                 <>Đang hiển thị kết quả cho: <span className="text-primary-500 font-black italic">"{query}"</span></>
               ) : (
                 <>Tất cả sản phẩm</>
@@ -118,6 +138,20 @@ const SearchResultPage = () => {
           </div>
 
           <div className="lg:w-3/4 flex-1 w-full">
+            {isVisualSearch && previewUrl && (
+              <div className="mb-6 flex items-center gap-4 rounded-3xl border border-primary-100 bg-primary-50/60 p-4 shadow-sm">
+                <img
+                  src={previewUrl}
+                  alt="Ảnh tìm kiếm"
+                  className="h-20 w-20 rounded-2xl object-cover shadow-md"
+                />
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Kết quả tìm kiếm bằng hình ảnh</h2>
+                  <p className="text-sm font-medium text-gray-500">Ảnh bạn đã tải lên được dùng để gợi ý các sản phẩm tương tự.</p>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white p-6 rounded-3xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between mb-8 shadow-sm gap-4">
               <span className="text-sm text-gray-500 font-medium">Tìm thấy <strong className="text-slate-900 text-2xl font-black">{totalElements}</strong> sản phẩm phù hợp</span>
               
@@ -128,12 +162,13 @@ const SearchResultPage = () => {
                 >
                   <Filter size={18} /> <span>Lọc SP</span>
                 </button>
-
-                <div className="relative group flex-1 sm:flex-none">
-                  <button className="w-full flex items-center justify-between px-6 py-3 bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:border-gray-200 rounded-2xl text-sm font-black text-gray-700 uppercase tracking-wide transition-all">
-                    Phổ biến nhất <ChevronDown size={18} className="ml-3 text-gray-400 group-hover:text-primary-500" />
-                  </button>
-                </div>
+                {!isVisualSearch && (
+                  <div className="relative group flex-1 sm:flex-none">
+                    <button className="w-full flex items-center justify-between px-6 py-3 bg-gray-50 hover:bg-gray-100 border-2 border-transparent hover:border-gray-200 rounded-2xl text-sm font-black text-gray-700 uppercase tracking-wide transition-all">
+                      Phổ biến nhất <ChevronDown size={18} className="ml-3 text-gray-400 group-hover:text-primary-500" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
