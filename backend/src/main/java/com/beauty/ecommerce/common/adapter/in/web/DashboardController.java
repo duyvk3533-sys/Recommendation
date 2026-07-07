@@ -2,9 +2,11 @@ package com.beauty.ecommerce.common.adapter.in.web;
 
 import com.beauty.ecommerce.common.application.service.DashboardService;
 import com.beauty.ecommerce.common.application.service.CustomerSegmentationService;
+import com.beauty.ecommerce.common.application.service.SalesForecastingService;
 import com.beauty.ecommerce.common.adapter.in.web.response.DashboardResponse;
 import com.beauty.ecommerce.common.dto.ApiResponse;
 import com.beauty.ecommerce.common.dto.CustomerSegmentationResponse;
+import com.beauty.ecommerce.common.dto.SalesForecastResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final CustomerSegmentationService customerSegmentationService;
+    private final SalesForecastingService salesForecastingService;
 
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<DashboardResponse>> getDashboardStats(
@@ -30,6 +33,13 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<CustomerSegmentationResponse>> getCustomerSegmentation() {
         CustomerSegmentationResponse segmentation = customerSegmentationService.getCustomerSegments();
         return ResponseEntity.ok(ApiResponse.success(segmentation));
+    }
+
+    @GetMapping("/forecasting")
+    public ResponseEntity<ApiResponse<SalesForecastResponse>> getSalesForecasting(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "week") String period) {
+        SalesForecastResponse forecast = salesForecastingService.forecastSales(period);
+        return ResponseEntity.ok(ApiResponse.success(forecast));
     }
 }
 

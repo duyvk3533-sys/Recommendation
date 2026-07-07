@@ -48,6 +48,25 @@ export interface ActivityLog {
   createdAt: string;
 }
 
+export interface SalesForecastPoint {
+  date: string;
+  actualRevenue: number | null;
+  actualOrders: number | null;
+  trendRevenue: number;
+  trendOrders: number;
+}
+
+export interface SalesForecastData {
+  points: SalesForecastPoint[];
+  period: string;
+  totalHistoricalRevenue: number;
+  totalHistoricalOrders: number;
+  totalForecastedRevenue: number;
+  totalForecastedOrders: number;
+  revenueTrend: 'UPWARD' | 'DOWNWARD' | 'STABLE';
+  ordersTrend: 'UPWARD' | 'DOWNWARD' | 'STABLE';
+}
+
 export const adminService = {
   getDashboardStats: async (days: number = 7): Promise<DashboardStats> => {
     const response = await axiosInstance.get<ApiResponse<DashboardStats>>(`/admin/dashboard/stats?days=${days}`);
@@ -78,6 +97,10 @@ export const adminService = {
   },
   getInventoryReceipts: async () => {
     const response = await axiosInstance.get<ApiResponse<any[]>>('/admin/inventory/receipts');
+    return response.data.data;
+  },
+  getSalesForecasting: async (period: 'week' | 'month' | 'quarter'): Promise<SalesForecastData> => {
+    const response = await axiosInstance.get<ApiResponse<SalesForecastData>>(`/admin/dashboard/forecasting?period=${period}`);
     return response.data.data;
   }
 };

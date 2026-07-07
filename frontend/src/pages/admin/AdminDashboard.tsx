@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { adminService, type DashboardStats, type CustomerSegmentationData } from "../../api/adminService";
+import { adminService, type DashboardStats, type CustomerSegmentationData, type SalesForecastData } from "../../api/adminService";
 import { productService } from "../../api/productService";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +39,8 @@ import {
   ScatterChart,
   Scatter,
   CartesianGrid,
+  ComposedChart,
+  Line,
 } from "recharts";
 
 interface StatCardProps {
@@ -81,6 +83,10 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [segLoading, setSegLoading] = useState(true);
   const [activeSegTab, setActiveSegTab] = useState<'VIP' | 'POTENTIAL' | 'CHEAP'>('VIP');
+  const [forecastData, setForecastData] = useState<SalesForecastData | null>(null);
+  const [forecastPeriod, setForecastPeriod] = useState<'week' | 'month' | 'quarter'>('week');
+  const [forecastMetric, setForecastMetric] = useState<'revenue' | 'orders'>('revenue');
+  const [forecastLoading, setForecastLoading] = useState(true);
   const [days, setDays] = useState(7);
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
   const [showOrdersMenu, setShowOrdersMenu] = useState(false);
@@ -140,11 +146,27 @@ export const AdminDashboard = () => {
     }
   };
 
+  const fetchForecasting = async (period: 'week' | 'month' | 'quarter') => {
+    setForecastLoading(true);
+    try {
+      const response = await adminService.getSalesForecasting(period);
+      setForecastData(response);
+    } catch (error) {
+      console.error("Failed to fetch sales forecasting data", error);
+    } finally {
+      setForecastLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats(days);
     fetchInventoryStats();
     fetchSegmentation();
   }, [days]);
+
+  useEffect(() => {
+    fetchForecasting(forecastPeriod);
+  }, [forecastPeriod]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -696,6 +718,251 @@ export const AdminDashboard = () => {
             </div>
           </div>
           </>
+        )}
+      </div>
+
+      {/* Sales & Demand Forecasting Section */}
+      <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-white mb-1">Dự báo doanh thu & Xu hướng (Sales & Demand Forecasting)</h3>
+            <p className="text-sm text-slate-500 font-medium italic">
+              Sử dụng mô hình Trí tuệ nhân tạo Hồi quy tuyến tính (Linear Regression) để dự đoán xu hướng tương lai.
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            {/* Metric Switcher */}
+            <div className="flex gap-1 p-1 bg-slate-950/40 border border-slate-800 rounded-xl">
+              <button
+                onClick={() => setForecastMetric('revenue')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  forecastMetric === 'revenue' ? 'bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/10' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Doanh thu
+              </button>
+              <button
+                onClick={() => setForecastMetric('orders')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  forecastMetric === 'orders' ? 'bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/10' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Đơn hàng
+              </button>
+            </div>
+
+            {/* Period Switcher */}
+            <div className="flex gap-1 p-1 bg-slate-950/40 border border-slate-800 rounded-xl">
+              {(['week', 'month', 'quarter'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setForecastPeriod(p)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    forecastPeriod === p ? 'bg-[#10B981] text-white shadow-lg shadow-[#10B981]/10' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {p === 'week' ? '7 ngày tới' : p === 'month' ? '30 ngày tới' : '90 ngày tới'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {forecastLoading ? (
+          <div className="h-96 flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin" />
+          </div>
+        ) : !forecastData || forecastData.points.length === 0 ? (
+          <div className="text-center py-10 opacity-50 text-slate-500 italic text-sm">Chưa có đủ dữ liệu để chạy dự báo</div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Chart Area */}
+            <div className="lg:col-span-2 bg-slate-955 border border-slate-800/50 p-6 rounded-2xl">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">
+                Biểu đồ phân tích lịch sử & Dự báo tương lai ({forecastMetric === 'revenue' ? 'Doanh thu' : 'Số lượng đơn hàng'})
+              </p>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={forecastData.points} margin={{ top: 20, right: 10, bottom: 10, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(tick) => {
+                        const d = new Date(tick);
+                        return `${d.getDate()}/${d.getMonth() + 1}`;
+                      }}
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => {
+                        if (forecastMetric === 'revenue') {
+                          if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                          if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                          return value;
+                        }
+                        return value;
+                      }}
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const formattedDate = new Date(data.date).toLocaleDateString('vi-VN', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          });
+                          const isFuture = data.actualRevenue === null;
+
+                          return (
+                            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl space-y-1 text-xs">
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isFuture ? 'Dự báo tương lai' : 'Thực tế lịch sử'}</p>
+                              <p className="font-black text-white mb-2">{formattedDate}</p>
+                              
+                              {forecastMetric === 'revenue' ? (
+                                <>
+                                  {!isFuture && (
+                                    <p className="text-slate-400">
+                                      Thực tế: <span className="text-[#3B82F6] font-black">{data.actualRevenue.toLocaleString()} đ</span>
+                                    </p>
+                                  )}
+                                  <p className="text-slate-400">
+                                    Xu hướng: <span className="text-[#10B981] font-black">{data.trendRevenue.toLocaleString()} đ</span>
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  {!isFuture && (
+                                    <p className="text-slate-400">
+                                      Thực tế: <span className="text-[#3B82F6] font-black">{data.actualOrders} đơn</span>
+                                    </p>
+                                  )}
+                                  <p className="text-slate-400">
+                                    Xu hướng: <span className="text-[#10B981] font-black">{data.trendOrders} đơn</span>
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36} 
+                      iconType="circle"
+                      formatter={(value) => (
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{value}</span>
+                      )}
+                    />
+                    {/* Render bars for historical actual data */}
+                    {forecastMetric === 'revenue' ? (
+                      <Bar name="Thực tế" dataKey="actualRevenue" fill="#3B82F6" radius={[4, 4, 0, 0]} opacity={0.65} barSize={20} />
+                    ) : (
+                      <Bar name="Thực tế" dataKey="actualOrders" fill="#3B82F6" radius={[4, 4, 0, 0]} opacity={0.65} barSize={20} />
+                    )}
+                    {/* Render trend line */}
+                    {forecastMetric === 'revenue' ? (
+                      <Line name="Đường xu hướng (Dự báo)" dataKey="trendRevenue" stroke="#10B981" strokeWidth={2.5} dot={false} strokeDasharray="4 4" />
+                    ) : (
+                      <Line name="Đường xu hướng (Dự báo)" dataKey="trendOrders" stroke="#10B981" strokeWidth={2.5} dot={false} strokeDasharray="4 4" />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Insights Column */}
+            <div className="bg-slate-955 border border-slate-800/50 p-6 rounded-2xl flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Phân tích & Khuyến nghị kinh doanh</p>
+                
+                {/* Trend direction card */}
+                {(() => {
+                  const isRevenue = forecastMetric === 'revenue';
+                  const trend = isRevenue ? forecastData.revenueTrend : forecastData.ordersTrend;
+                  const histTotal = isRevenue ? forecastData.totalHistoricalRevenue : forecastData.totalHistoricalOrders;
+                  const foreTotal = isRevenue ? forecastData.totalForecastedRevenue : forecastData.totalForecastedOrders;
+
+                  return (
+                    <div className="bg-slate-900 border border-slate-800/50 p-4 rounded-xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-400">Trạng thái xu hướng:</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                          trend === 'UPWARD' ? 'bg-emerald-500/10 text-emerald-400' :
+                          trend === 'DOWNWARD' ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-500/10 text-slate-400'
+                        }`}>
+                          {trend === 'UPWARD' && <TrendingUp size={10} />}
+                          {trend === 'UPWARD' ? 'TĂNG TRƯỞNG' : trend === 'DOWNWARD' ? 'SUY GIẢM' : 'ỔN ĐỊNH'}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Tổng doanh số lịch sử</p>
+                          <p className="text-white font-black text-sm">
+                            {isRevenue ? `${histTotal.toLocaleString()} đ` : `${histTotal} đơn hàng`}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Dự báo {forecastPeriod === 'week' ? '7 ngày' : forecastPeriod === 'month' ? '30 ngày' : '90 ngày'} tới</p>
+                          <p className="text-emerald-400 font-black text-sm">
+                            {isRevenue ? `${foreTotal.toLocaleString()} đ` : `${foreTotal} đơn hàng`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Recommendations */}
+                <div className="space-y-3 text-xs">
+                  <p className="font-bold text-white">Khuyến nghị chiến dịch:</p>
+                  <ul className="space-y-2 text-slate-400 list-disc list-inside">
+                    {forecastMetric === 'revenue' && forecastData.revenueTrend === 'UPWARD' && (
+                      <>
+                        <li>Doanh số đang có đà tăng tốt. Nên đẩy mạnh quảng cáo các dòng sản phẩm có biên lợi nhuận cao.</li>
+                        <li>Đảm bảo lượng tồn kho an toàn để phục vụ kịp thời nhu cầu gia tăng.</li>
+                      </>
+                    )}
+                    {forecastMetric === 'revenue' && forecastData.revenueTrend === 'DOWNWARD' && (
+                      <>
+                        <li>Xu hướng doanh số suy giảm. Hãy lên kế hoạch cho các chương trình khuyến mãi, flash sale để đẩy hàng tồn kho.</li>
+                        <li>Xem lại chiến lược giá bán hoặc giới thiệu các sản phẩm hot trend mới.</li>
+                      </>
+                    )}
+                    {forecastMetric === 'orders' && forecastData.ordersTrend === 'UPWARD' && (
+                      <>
+                        <li>Số lượng đơn hàng tăng mạnh. Hãy tối ưu quy trình đóng gói và vận chuyển của cửa hàng để tránh chậm trễ.</li>
+                        <li>Áp dụng các gói bundle (combo) để tăng thêm giá trị trung bình trên mỗi đơn hàng.</li>
+                      </>
+                    )}
+                    {((forecastMetric === 'revenue' && forecastData.revenueTrend === 'STABLE') || 
+                      (forecastMetric === 'orders' && forecastData.ordersTrend === 'STABLE')) && (
+                      <>
+                        <li>Thị trường đang đi ngang ổn định. Thích hợp để triển khai các chương trình tri ân khách hàng cũ nhằm thúc đẩy mua lại.</li>
+                        <li>Đánh giá chất lượng dịch vụ chăm sóc khách hàng để tăng trải nghiệm người dùng.</li>
+                      </>
+                    )}
+                    <li>Chủ động nhập thêm hàng thuộc danh mục bán chạy để chuẩn bị trước.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Timestamp info */}
+              <div className="text-[10px] text-slate-500 italic">
+                Cập nhật lần cuối: {new Date().toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
