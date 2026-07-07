@@ -21,6 +21,22 @@ export interface DashboardStats {
   topFavoritedProducts: Array<{ name: string; count: number; salesCount: number }>;
 }
 
+export interface CustomerSegment {
+  userId: number;
+  fullName: string;
+  email: string;
+  totalSpent: number;
+  productViews: number;
+  segment: 'VIP' | 'POTENTIAL' | 'CHEAP';
+}
+
+export interface CustomerSegmentationData {
+  customers: CustomerSegment[];
+  segmentSizes: Record<string, number>;
+  averageSpent: Record<string, number>;
+  averageViews: Record<string, number>;
+}
+
 export interface ActivityLog {
   id: number;
   userId: number | null;
@@ -35,6 +51,10 @@ export interface ActivityLog {
 export const adminService = {
   getDashboardStats: async (days: number = 7): Promise<DashboardStats> => {
     const response = await axiosInstance.get<ApiResponse<DashboardStats>>(`/admin/dashboard/stats?days=${days}`);
+    return response.data.data;
+  },
+  getCustomerSegmentation: async (): Promise<CustomerSegmentationData> => {
+    const response = await axiosInstance.get<ApiResponse<CustomerSegmentationData>>('/admin/dashboard/segmentation');
     return response.data.data;
   },
   getRecentActivities: async (group?: string, query?: string): Promise<ActivityLog[]> => {
@@ -63,3 +83,4 @@ export const adminService = {
 };
 
 export default adminService;
+

@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Random;
 
 @Configuration
 @RequiredArgsConstructor
@@ -27,9 +29,65 @@ public class DataInitializer implements CommandLineRunner {
             initializeUsers();
             initializeCategoriesAndProducts();
             fixActivityLogGroups();
+            initializeProductViewHistory();
             log.info("Hoàn tất khởi tạo dữ liệu mẫu.");
         } catch (Exception e) {
             log.error("Lỗi khi khởi tạo dữ liệu mẫu: {}. Ứng dụng vẫn sẽ tiếp tục chạy.", e.getMessage());
+        }
+    }
+
+    private void initializeProductViewHistory() {
+        log.info("Khởi tạo lịch sử xem sản phẩm ngẫu nhiên để phục vụ phân cụm khách hàng...");
+        try {
+            Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM product_view_history", Integer.class);
+            if (count != null && count > 0) {
+                log.info("Lịch sử xem sản phẩm đã có dữ liệu. Bỏ qua khởi tạo.");
+                return;
+            }
+
+            List<Long> userIds = jdbcTemplate.queryForList("SELECT id FROM users WHERE role = 'USER'", Long.class);
+            if (userIds.isEmpty()) {
+                log.info("Không có người dùng nào để tạo lịch sử xem.");
+                return;
+            }
+
+            List<Long> productIds = jdbcTemplate.queryForList("SELECT id FROM products WHERE status = 'ACTIVE'", Long.class);
+            if (productIds.isEmpty()) {
+                log.info("Không có sản phẩm nào để tạo lịch sử xem.");
+                return;
+            }
+
+            Random rand = new Random();
+            for (Long userId : userIds) {
+                Double totalSpent = jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE user_id = ? AND status != 'CANCELLED'",
+                        Double.class, userId
+                );
+
+                int viewsCount;
+                if (totalSpent > 10000000) {
+                    viewsCount = 15 + rand.nextInt(16);
+                } else if (totalSpent > 100000) {
+                    viewsCount = 3 + rand.nextInt(8);
+                } else {
+                    if (rand.nextDouble() < 0.7) {
+                        viewsCount = 25 + rand.nextInt(26);
+                    } else {
+                        viewsCount = 1 + rand.nextInt(5);
+                    }
+                }
+
+                for (int i = 0; i < viewsCount; i++) {
+                    Long productId = productIds.get(rand.nextInt(productIds.size()));
+                    jdbcTemplate.update(
+                            "INSERT INTO product_view_history (user_id, product_id, viewed_at) VALUES (?, ?, NOW())",
+                            userId, productId
+                    );
+                }
+            }
+            log.info("Đã khởi tạo thành công lịch sử xem sản phẩm cho phân cụm.");
+        } catch (Exception e) {
+            log.warn("Không thể khởi tạo lịch sử xem sản phẩm: {}", e.getMessage());
         }
     }
 

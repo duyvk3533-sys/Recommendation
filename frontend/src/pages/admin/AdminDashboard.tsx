@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { adminService, type DashboardStats } from "../../api/adminService";
+import { adminService, type DashboardStats, type CustomerSegmentationData } from "../../api/adminService";
 import { productService } from "../../api/productService";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -36,6 +36,9 @@ import {
   PieChart,
   Pie,
   Legend,
+  ScatterChart,
+  Scatter,
+  CartesianGrid,
 } from "recharts";
 
 interface StatCardProps {
@@ -74,7 +77,10 @@ export const AdminDashboard = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showExportSuccess, setShowExportSuccess] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [segmentation, setSegmentation] = useState<CustomerSegmentationData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [segLoading, setSegLoading] = useState(true);
+  const [activeSegTab, setActiveSegTab] = useState<'VIP' | 'POTENTIAL' | 'CHEAP'>('VIP');
   const [days, setDays] = useState(7);
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
   const [showOrdersMenu, setShowOrdersMenu] = useState(false);
@@ -92,6 +98,18 @@ export const AdminDashboard = () => {
       toast.error("Không thể tải thông tin thống kê");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSegmentation = async () => {
+    setSegLoading(true);
+    try {
+      const response = await adminService.getCustomerSegmentation();
+      setSegmentation(response);
+    } catch (error) {
+      console.error("Failed to load customer segmentation data", error);
+    } finally {
+      setSegLoading(false);
     }
   };
 
@@ -125,6 +143,7 @@ export const AdminDashboard = () => {
   useEffect(() => {
     fetchStats(days);
     fetchInventoryStats();
+    fetchSegmentation();
   }, [days]);
 
   const handleExport = async () => {
@@ -449,6 +468,235 @@ export const AdminDashboard = () => {
             Xem tất cả đơn hàng
           </button>
         </div>
+      </div>
+
+      {/* Customer Segmentation Section */}
+      <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl space-y-6">
+        <div>
+          <h3 className="text-xl font-bold text-white mb-1">Phân nhóm khách hàng (Customer Segmentation)</h3>
+          <p className="text-sm text-slate-500 font-medium italic">Thuật toán AI K-Means tự động phân cụm khách hàng dựa trên hành vi mua sắm và xem sản phẩm.</p>
+        </div>
+
+        {segLoading ? (
+          <div className="h-64 flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin" />
+          </div>
+        ) : !segmentation || segmentation.customers.length === 0 ? (
+          <div className="text-center py-10 opacity-50 text-slate-500 italic text-sm">Chưa có đủ dữ liệu phân cụm khách hàng</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Scatter Plot Chart */}
+            <div className="lg:col-span-2 bg-slate-955 border border-slate-800/50 p-6 rounded-2xl">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Biểu đồ phân cụm (2D Cluster Plot)</p>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
+                    <XAxis 
+                      type="number" 
+                      dataKey="totalSpent" 
+                      name="Tổng chi tiêu" 
+                      unit="đ" 
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }}
+                    />
+                    <YAxis 
+                      type="number" 
+                      dataKey="productViews" 
+                      name="Số lượt xem" 
+                      unit=" xem" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }}
+                    />
+                    <Tooltip 
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl">
+                              <p className="text-xs font-black text-white">{data.fullName}</p>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">{data.email}</p>
+                              <div className="space-y-1 text-xs">
+                                <p className="text-slate-400">Chi tiêu: <span className="text-white font-black">{data.totalSpent.toLocaleString()} đ</span></p>
+                                <p className="text-slate-400">Xem sản phẩm: <span className="text-white font-black">{data.productViews} lần</span></p>
+                                <p className="text-slate-400 flex items-center gap-1.5 mt-1">
+                                  Nhóm: 
+                                  <span className={`font-black uppercase tracking-widest text-[9px] ${
+                                    data.segment === 'VIP' ? 'text-[#A855F7]' :
+                                    data.segment === 'POTENTIAL' ? 'text-[#F97316]' : 'text-[#64748B]'
+                                  }`}>
+                                    {data.segment === 'VIP' ? 'VIP' :
+                                     data.segment === 'POTENTIAL' ? 'Tiềm năng' : 'Mua giá rẻ'}
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36} 
+                      iconType="circle"
+                      formatter={(value) => (
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{value}</span>
+                      )}
+                    />
+                    <Scatter name="Khách hàng VIP" data={segmentation.customers.filter(c => c.segment === 'VIP')} fill="#A855F7" shape="circle" />
+                    <Scatter name="Khách hàng tiềm năng" data={segmentation.customers.filter(c => c.segment === 'POTENTIAL')} fill="#F97316" shape="triangle" />
+                    <Scatter name="Khách hàng mua giá rẻ" data={segmentation.customers.filter(c => c.segment === 'CHEAP')} fill="#64748B" shape="square" />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Segment Breakdown */}
+            <div className="space-y-6">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Chi tiết phân nhóm (Segments Breakdown)</p>
+              
+              <div className="space-y-4">
+                {/* VIP Cluster */}
+                <div className="bg-slate-950/20 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-[#A855F7]" />
+                      <span className="text-sm font-black text-white uppercase tracking-wider">Khách hàng VIP</span>
+                    </div>
+                    <span className="bg-[#A855F7]/10 text-[#A855F7] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                      {segmentation.segmentSizes['VIP'] || 0} Thành viên
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Chi tiêu trung bình</p>
+                      <p className="text-white font-black">{(segmentation.averageSpent['VIP'] || 0).toLocaleString()} đ</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Số lượt xem TB</p>
+                      <p className="text-white font-black">{(segmentation.averageViews['VIP'] || 0).toFixed(1)} lần</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Potential Cluster */}
+                <div className="bg-slate-950/20 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-[#F97316]" />
+                      <span className="text-sm font-black text-white uppercase tracking-wider">Tiềm năng</span>
+                    </div>
+                    <span className="bg-[#F97316]/10 text-[#F97316] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                      {segmentation.segmentSizes['POTENTIAL'] || 0} Thành viên
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Chi tiêu trung bình</p>
+                      <p className="text-white font-black">{(segmentation.averageSpent['POTENTIAL'] || 0).toLocaleString()} đ</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Số lượt xem TB</p>
+                      <p className="text-white font-black">{(segmentation.averageViews['POTENTIAL'] || 0).toFixed(1)} lần</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cheap Cluster */}
+                <div className="bg-slate-950/20 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-[#64748B]" />
+                      <span className="text-sm font-black text-white uppercase tracking-wider">Mua giá rẻ</span>
+                    </div>
+                    <span className="bg-[#64748B]/10 text-[#64748B] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                      {segmentation.segmentSizes['CHEAP'] || 0} Thành viên
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Chi tiêu trung bình</p>
+                      <p className="text-white font-black">{(segmentation.averageSpent['CHEAP'] || 0).toLocaleString()} đ</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] mb-0.5">Số lượt xem TB</p>
+                      <p className="text-white font-black">{(segmentation.averageViews['CHEAP'] || 0).toFixed(1)} lần</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer list for active segment */}
+          <div className="border-t border-slate-800 pt-8 mt-8 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h4 className="text-md font-bold text-white uppercase tracking-tight">Danh sách khách hàng trong nhóm</h4>
+                <p className="text-xs text-slate-500 font-medium">Bấm vào các nút phân nhóm bên dưới để xem danh sách chi tiết.</p>
+              </div>
+              <div className="flex gap-2 p-1.5 bg-slate-950/40 border border-slate-800 rounded-xl">
+                {(['VIP', 'POTENTIAL', 'CHEAP'] as const).map((seg) => (
+                  <button
+                    key={seg}
+                    onClick={() => setActiveSegTab(seg)}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                      activeSegTab === seg
+                        ? seg === 'VIP' ? 'bg-[#A855F7] text-white shadow-lg shadow-[#A855F7]/10'
+                          : seg === 'POTENTIAL' ? 'bg-[#F97316] text-white shadow-lg shadow-[#F97316]/10'
+                          : 'bg-[#64748B] text-white shadow-lg shadow-[#64748B]/10'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    }`}
+                  >
+                    {seg === 'VIP' ? 'VIP' : seg === 'POTENTIAL' ? 'Tiềm năng' : 'Giá rẻ'} ({segmentation.segmentSizes[seg] || 0})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-950/20 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-900/40 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="px-6 py-4">Họ và tên</th>
+                      <th className="px-6 py-4">Email</th>
+                      <th className="px-6 py-4 text-right">Tổng chi tiêu</th>
+                      <th className="px-6 py-4 text-right">Số lượt xem sản phẩm</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {segmentation.customers.filter(c => c.segment === activeSegTab).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-10 text-center text-xs text-slate-500 font-medium italic">
+                          Không có thành viên nào trong nhóm này
+                        </td>
+                      </tr>
+                    ) : (
+                      segmentation.customers
+                        .filter(c => c.segment === activeSegTab)
+                        .map((c, i) => (
+                          <tr key={i} className="border-b border-slate-800/40 hover:bg-slate-800/20 transition-colors text-xs font-bold text-slate-300">
+                            <td className="px-6 py-4 text-white font-black">{c.fullName}</td>
+                            <td className="px-6 py-4 text-slate-400">{c.email}</td>
+                            <td className="px-6 py-4 text-right text-emerald-400">{(c.totalSpent).toLocaleString()} đ</td>
+                            <td className="px-6 py-4 text-right text-white">{(c.productViews)} lần</td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          </>
+        )}
       </div>
 
       {/* Product Trends Section — Horizontal Bar Charts */}
